@@ -174,12 +174,19 @@ class MCPServer:
                 self._stats["failed_requests"] += 1
                 self.logger.error(f"Unexpected error: {e}")
                 
+                # Prevent information disclosure in production
+                error_data = None
+                if hasattr(self.config, 'debug_mode') and self.config.debug_mode:
+                    error_data = str(e)
+                elif self.config.schema_validation_strict:
+                    error_data = "Internal processing error"
+                
                 error_response = MCPResponse(
                     id=request_data.get("id") if "request_data" in locals() else None,
                     error=MCPError(
                         code=-32603,  # Internal error
                         message="Internal server error",
-                        data=str(e) if self.config.schema_validation_strict else None
+                        data=error_data
                     ).dict()
                 )
                 

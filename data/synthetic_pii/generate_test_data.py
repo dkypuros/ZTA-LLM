@@ -7,6 +7,7 @@ for testing the security impedance framework.
 
 import json
 import random
+import secrets
 import string
 import hashlib
 from faker import Faker
@@ -225,8 +226,8 @@ class TestDataGenerator:
     
     def _generate_jwt_signature(self) -> str:
         """Generate fake JWT signature."""
-        # Random bytes that look like a real signature
-        signature_bytes = random.randbytes(32)
+        # Random bytes that look like a real signature (use CSPRNG)
+        signature_bytes = secrets.token_bytes(32)
         return self._base64_encode(signature_bytes.hex())
     
     def _base64_encode(self, data: str) -> str:

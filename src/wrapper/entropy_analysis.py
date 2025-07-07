@@ -146,8 +146,12 @@ class EntropyAnalyzer:
         for i in range(len(text) - window_size + 1):
             segment = text[i:i + window_size]
             
-            # Skip if this segment overlaps with already found segments
-            if any(segment in existing.text for existing in high_entropy_segments):
+            # Skip if this segment overlaps with already found segments (check interval overlap)
+            segment_start, segment_end = i, i + window_size
+            if any(self._intervals_overlap(segment_start, segment_end, 
+                                         existing.analysis_details.get('start_pos', 0),
+                                         existing.analysis_details.get('end_pos', len(existing.text)))
+                   for existing in high_entropy_segments):
                 continue
             
             result = self.analyze_text_segment(segment)
@@ -207,6 +211,10 @@ class EntropyAnalyzer:
             end += 1
         
         return full_text[start:end]
+    
+    def _intervals_overlap(self, start1: int, end1: int, start2: int, end2: int) -> bool:
+        """Check if two intervals overlap."""
+        return not (end1 <= start2 or end2 <= start1)
     
     def _deduplicate_segments(self, segments: List[EntropyResult]) -> List[EntropyResult]:
         """

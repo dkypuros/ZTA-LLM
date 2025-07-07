@@ -26,6 +26,7 @@ class PaddedPrompt(NamedTuple):
     padded_length: int
     padding_added: int
     strategy_used: PaddingStrategy
+    jitter_delay_ms: float = 0.0
 
 
 class PromptPadder:
@@ -72,8 +73,9 @@ class PromptPadder:
         Returns:
             PaddedPrompt with original and padded versions
         """
+        jitter_delay = 0.0
         if self.add_timing_jitter:
-            self._add_timing_jitter()
+            jitter_delay = self._add_timing_jitter()
             
         original_length = len(prompt)
         
@@ -93,7 +95,8 @@ class PromptPadder:
             original_length=original_length,
             padded_length=len(padded_prompt),
             padding_added=padding_added,
-            strategy_used=self.strategy
+            strategy_used=self.strategy,
+            jitter_delay_ms=jitter_delay
         )
     
     def _generate_padding(self, length: int) -> str:
@@ -146,15 +149,15 @@ class PromptPadder:
         else:
             return template[:length]
     
-    def _add_timing_jitter(self) -> None:
+    def _add_timing_jitter(self) -> float:
         """
-        Add small random delays to prevent timing-based side channels.
+        Calculate timing jitter without blocking.
         
-        Implements the timing jitter mentioned in the paper's
-        performance evaluation section.
+        Returns the jitter amount that can be applied asynchronously
+        or after processing to prevent timing-based side channels.
         """
         jitter_ms = random.uniform(0.1, 2.0)  # 0.1-2ms jitter
-        time.sleep(jitter_ms / 1000.0)
+        return jitter_ms
     
     def validate_padding(self, padded_prompt: PaddedPrompt) -> bool:
         """

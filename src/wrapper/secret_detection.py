@@ -157,9 +157,12 @@ class SecretDetector:
             return False
             
         try:
-            # Try to decode header and payload
-            base64.urlsafe_b64decode(parts[0] + '==')
-            base64.urlsafe_b64decode(parts[1] + '==')
+            # Try to decode header and payload with proper padding
+            for part in parts[:2]:  # header and payload
+                missing = len(part) % 4
+                if missing:
+                    part += '=' * (4 - missing)
+                base64.urlsafe_b64decode(part)
             return True
         except Exception:
             return False

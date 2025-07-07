@@ -146,12 +146,9 @@ def test_gap_e_opa_source_address():
 def test_security_impedance_core():
     """Test the core validation suite"""
     try:
-        # Change to security-impedance-core directory and run validation
+        # Add security-impedance-core/src to Python path
         original_dir = os.getcwd()
-        os.chdir("security-impedance-core")
-        
-        # Import and test the modules directly
-        sys.path.insert(0, 'src')
+        sys.path.insert(0, 'security-impedance-core/src')
         
         from impedance.alias import alias_path, is_alias
         from impedance.padding import pad, PROMPT_PAD_TOKENS
@@ -177,12 +174,9 @@ def test_security_impedance_core():
         
         elapsed = time.perf_counter() - start_time
         
-        os.chdir(original_dir)
-        
         return "PASS", f"All core modules working, performance: {elapsed*1000:.3f}ms", ""
         
     except Exception as e:
-        os.chdir(original_dir)
         return "FAIL", "", str(e)
 
 def test_performance_constraint():
