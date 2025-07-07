@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: security-wrapper
+  namespace: security-impedance
+  labels:
+    app: security-wrapper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: security-wrapper
+  template:
+    metadata:
+      labels:
+        app: security-wrapper
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: wrapper
+        image: security-impedance/wrapper:latest
+        ports:
+        - containerPort: 8080
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "10m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
