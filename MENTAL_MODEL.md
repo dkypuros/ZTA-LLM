@@ -1,16 +1,16 @@
 # Mental Model: Understanding ZTA-LLM Security Architecture
 
-> **🧠 START HERE** for a big-picture understanding of the ZTA-LLM framework before diving into implementation details.
+> **🧠 START HERE** for the high-level picture before diving into code.
 
-This document provides the essential mental model for understanding how we've built a secure, production-ready system around the Model Context Protocol (MCP) without breaking compatibility.
+This document explains how we wrapped the unmodified Model Context Protocol (MCP) in a production-grade security envelope. The goal is to block data exfiltration and other abuses while keeping performance tight and compatibility perfect.
 
 ---
 
 ## The Core Insight: Security Impedance
 
-Think of our approach as adding **security impedance** - deliberate resistance that slows down or blocks malicious requests while allowing legitimate ones to pass through efficiently. Like electrical impedance, it creates selective resistance without breaking the circuit.
+Security impedance is deliberate resistance. We slow or stop malicious requests without interrupting legitimate traffic—much like electrical impedance restricts harmful current without breaking the circuit.
 
-**Key principle**: We kept the MCP protocol unchanged on the wire, but surrounded it with three concentric layers of validation that act as security filters.
+**Key principle**: MCP's wire format stays untouched. Instead, we place three concentric validation layers around every request and response.
 
 ---
 
@@ -18,7 +18,7 @@ Think of our approach as adding **security impedance** - deliberate resistance t
 
 ### What We Built
 
-We took the standard Model Context Protocol and wrapped it in a **three-layer security onion** that prevents data exfiltration while maintaining sub-millisecond performance:
+We took stock MCP and slid it into a three-layer **security onion** that keeps sensitive content private while adding only microseconds of latency:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -30,21 +30,21 @@ We took the standard Model Context Protocol and wrapped it in a **three-layer se
 │ Layer 1: Application Guards (FastAPI Wrapper)               │
 │ • Path aliasing: /etc/passwd → FILE_abc123                 │
 │ • Secret scrubbing: sk_live_xxx → [REDACTED]               │
-│ • Prompt padding: normalize length to prevent side-channel │
+│ • Prompt padding: constant length to hide size signals     │
 └─────────────────────┼───────────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
-│ Layer 2: Service Mesh (Envoy + OPA Data Firewall)         │
-│ • Transit validation: inspect every MCP message             │
+│ Layer 2: Service Mesh (Envoy + OPA Data Firewall)           │
+│ • Transit validation: examine every MCP message            │
 │ • Policy enforcement: block unaliased paths & secrets      │
-│ • Audit logging: complete decision trail                   │
+│ • Audit logging: full decision trail                       │
 └─────────────────────┼───────────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
 │ Layer 3: Infrastructure (Kubernetes Network Policies)      │
-│ • Network isolation: only approved egress                  │
+│ • Network isolation: approved egress only                  │
 │ • Container security: non-root, read-only filesystem       │
-│ • Resource limits: prevent DoS attacks                     │
+│ • Resource limits: reduce DoS surface                      │
 └─────────────────────┼───────────────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────────────┐
@@ -53,170 +53,103 @@ We took the standard Model Context Protocol and wrapped it in a **three-layer se
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### The Hybrid Architecture Split
+### The Hybrid Split
 
-**Public Planning** (Outside OpenShift):
-- Claude agent running via Anthropic's API
-- Makes standard MCP calls
-- Handles orchestration and planning logic
-- Never sees sensitive data (only aliased paths, scrubbed secrets)
+**Public planning (outside OpenShift)**
+Claude (via Anthropic API) handles tool orchestration and "thinking." It speaks plain MCP but never sees unmasked secrets or raw paths.
 
-**Private Inference** (Inside OpenShift):
-- vLLM server for sensitive operations
-- Full access to real data and credentials
-- Protected by three security layers
-- Network-isolated from external access
+**Private inference (inside OpenShift)**
+A vLLM server performs heavy model work with real data. Three security layers plus network policies prevent leakage.
 
 ---
 
 ## 🔐 How We Extended MCP Without Breaking It
 
-### The Protocol Stays the Same
+### Protocol Stays the Same
 
-We **did not** invent new MCP JSON keys or modify the spec. A standard MCP client can talk to our server without any code changes. The security happens transparently in the infrastructure.
+No new fields, verbs, or tags. Any vanilla MCP client still works.
 
-### But the Behavior Got Much Stricter
+### Server Behavior Tightened
 
-What changed:
-- **Stricter schema validation**: Every request must pass enhanced JSON validation
-- **Size limits**: Prevent oversized payloads (configurable, default 1MB)
-- **Method allow-listing**: Only approved MCP methods are permitted
-- **Time-boxing**: Tool execution has mandatory timeouts
-- **Security metadata**: Responses include `security_validated: true` flag
+* Stricter JSON-schema checks
+* One-megabyte request cap
+* Explicit method allow-list
+* Per-tool execution timeouts
+* `security_validated: true` added to responses for at-a-glance assurance
+
+These checks live in `src/mcp_server/server.py`, invisible to clients but uncompromising on safety.
 
 ### Extending the Model Context Protocol
 
 The original MCP spec only defined the basic JSON-RPC-style verbs—tools/list, tools/call, resources/read, and so on—and left trust decisions to the application that used it. In our implementation the wire format stays compatible, but the server now insists on extra guardrails before it will accept a call. First, every request body must satisfy a stricter JSON schema; second, the server time-boxes tool execution, tracks request sizes, and blocks any method that is not on an explicit allow-list. Those checks are enforced inside the `MCPServer` class, so from a client's point of view MCP looks unchanged yet behaves much more cautiously.
 
-### Added Security Protocols Around MCP
+### Two Defensive Rings Around MCP
 
-We surrounded that core protocol with two new defensive rings. Inside the wrapper process we scan and sanitise the text—aliasing file paths, scrubbing secrets, padding the prompt to constant length. On the network hop between services we introduced Envoy plus an Open Policy Agent data-firewall that inspects every MCP message in transit. The Envoy filter forwards the request to OPA, which runs Rego rules to reject un-aliased paths, obvious credentials, high-entropy blobs that look like keys, or over-large payloads. If a request survives both layers it reaches the MCP server; if not, it never even touches the model.
+* **Wrapper layer** (Python) aliases paths, scrubs secrets, pads prompts.
+* **Mesh layer** (Envoy + OPA) rejects what the wrapper missed—unaliased paths, API keys, high-entropy blobs, oversize bodies—and logs every verdict.
+
+If both layers pass, the MCP server proceeds. If either fails, the request dies before reaching the model.
 
 ### Tags and Metadata
 
-We did not invent new MCP JSON keys or tags for clients to send. Instead we add metadata at the transport layer. Envoy stamps each request with headers such as `X-ZTA-Security-Layer` and `X-Request-ID`, and OPA includes a structured decision log that records which rule fired. Internally the MCP server attaches a small result block—`security_validated: true` plus processing-time metrics—but these are part of the response object and do not break compatibility. So clients talk the same MCP dialect, while the infrastructure injects or strips the extra headers it needs for policy enforcement.
+We avoided new MCP keys. Instead:
 
-### Net Result
-
-Functionally we kept the public face of MCP stable while embedding a triple-layer privacy shield around it. Requests that would have sailed through the reference implementation—like "read /etc/passwd" or "show me sk_live_…"—now fail early, and the extra checks cost less than a millisecond per call in practice.
+* Envoy injects headers (`X-ZTA-Security-Layer`, `X-Request-ID`).
+* OPA writes structured decision logs.
+* MCP responses include `security_validated` and timing fields—but those stay within the JSON-RPC response envelope, so compatibility remains.
 
 ---
 
 ## 🏗️ Where the Agent Code Lives and Where the Model Lives
 
-In the design we kept the "brain" that decides which tool to call—Claude running through the Code-SDK—outside of the OpenShift cluster. That public agent sees only the Model-Context-Protocol endpoint that we expose. The heavy-duty model that actually generates answers, however, is a vLLM server that runs inside OpenShift next to the rest of the private micro-services. The `docker-compose.yml` file shows this split clearly: there is a `vllm-server` service that binds to the cluster-internal network and a separate `agent_client` package that a remote Claude worker would import when it wants to talk MCP.
+* The **Claude Code-SDK agent** runs outside. It drives workflows but receives only aliased paths and redacted secrets.
+* The **vLLM inference engine** runs inside OpenShift, isolated by NetworkPolicy; only outbound to Anthropic planning is allowed.
 
-### How We Made That Safe
+Requests flow:
 
-Every request the outside agent sends first passes through the Layer-1 FastAPI wrapper. That wrapper aliases any real file paths, strips or masks secrets, and pads the prompt so the length of the input cannot leak information. The cleaned request is forwarded to Envoy, which calls Open Policy Agent; OPA evaluates Rego rules that reject raw paths, obvious keys or high-entropy blobs. Only after the wrapper and the mesh firewall agree that the input is harmless does the call reach the internal MCP server, which can decide to send the query to the local vLLM model.
+1. Agent sends MCP call.
+2. Wrapper cleans and validates.
+3. Envoy → OPA firewall enforces Rego rules.
+4. MCP server does schema and timeout checks.
+5. vLLM generates the answer inside the cluster.
 
-Because the large model never leaves the OpenShift network, and because the only egress rule in the NetworkPolicy is the single IP range for Anthropic's planning API, your private data stays inside. The public agent can still orchestrate complex tool chains, but everything sensitive—PII, in-house documents, database credentials—remains protected by the three concentric layers we wired up.
-
-### What Changed in MCP Itself
-
-We did not add new JSON keys or break the spec. Instead we tightened the server's behaviour: stricter schema validation, size limits, method allow-listing, and a mandatory `security_validated` flag in every response so the client can see that the pipeline ran. On the wire it is still the same MCP, so existing Claude SDK calls keep working without modification.
-
----
-
-## 🛡️ The Three Security Layers Explained
-
-### Layer 1: Application Guards (In-Process)
-**Where**: Inside the FastAPI wrapper (`src/wrapper/`)
-**What it does**:
-- **Path aliasing**: Real paths → deterministic hashes (`/etc/passwd` → `FILE_abc123`)
-- **Secret detection**: Multi-pattern regex + entropy analysis
-- **Prompt padding**: Normalize all prompts to constant length (prevents side-channel attacks)
-- **Schema validation**: Ensure all requests match expected structure
-
-**Performance**: ~0.02ms per request
-
-### Layer 2: Service Mesh (Network Transit)
-**Where**: Envoy proxy + OPA policy engine (`deploy/opa/`)
-**What it does**:
-- **Transit inspection**: Every MCP message examined in flight
-- **Policy enforcement**: Rego rules reject dangerous patterns
-- **Audit logging**: Complete decision trail for compliance
-- **Circuit breaking**: Fail fast on repeated violations
-
-**Performance**: ~0.12ms per request
-
-### Layer 3: Infrastructure (Kubernetes)
-**Where**: Network policies, security contexts (`deploy/k8s/`)
-**What it does**:
-- **Network isolation**: Only Anthropic API egress allowed
-- **Container security**: Non-root users, read-only filesystems
-- **Resource limits**: Prevent resource exhaustion
-- **Pod security**: Seccomp, AppArmor profiles
-
-**Performance**: No measurable impact
+Private data never leaves Layer 3.
 
 ---
 
-## 🚀 Key Design Decisions
+## 🛡️ The Three Security Layers in Practice
 
-### 1. **Compatibility First**
-We kept MCP wire-compatible so existing clients work unchanged. Security is invisible to the client.
+### Layer 1 – Application Guards
 
-### 2. **Defense in Depth**
-Three independent layers mean an attacker must bypass multiple systems. If one layer fails, the others still protect.
+Located in `src/wrapper/`. Performs deterministic path aliasing, multi-pattern secret detection with entropy analysis, constant-length padding, and initial schema validation. Adds roughly 0.02 ms per call.
 
-### 3. **Fail Safe**
-Default is to **deny**. Only explicitly allowed operations pass through.
+### Layer 2 – Service Mesh
 
-### 4. **Observable Security**
-Every security decision is logged and auditable. You can see exactly why a request was blocked.
+Defined in `deploy/envoy/` and `deploy/opa/`. Envoy streams every request body to OPA; Rego policies veto raw paths, secrets, oversize payloads, banned tool names, and other exfiltration indicators. Adds ~0.12 ms.
 
-### 5. **Performance Conscious**
-Total overhead ~0.234ms - well under the 15ms budget from our research paper.
+### Layer 3 – Infrastructure
+
+Kubernetes manifests in `deploy/k8s/`. Egress is whitelisted, containers run non-root with read-only filesystems, seccomp/AppArmor profiles are enabled, and resources are capped. Latency impact is negligible.
 
 ---
 
-## 📁 Repository Navigation
+## 🚀 Design Decisions
 
-Now that you understand the mental model, here's where to find the implementation:
-
-### Core Security Implementation
-- **`src/wrapper/`** - Layer 1 application guards
-- **`deploy/opa/policies/`** - Layer 2 OPA policies  
-- **`deploy/k8s/`** - Layer 3 Kubernetes manifests
-- **`src/mcp_server/`** - Enhanced MCP server implementation
-
-### Testing & Validation
-- **`test_critical_fixes.py`** - Critical security gap validation
-- **`test_security_fixes.py`** - Security vulnerability testing
-- **`TEST_RESULTS.md`** - Complete validation results
-
-### Documentation
-- **`README.md`** - Getting started and architecture overview
-- **`CHANGELOG.md`** - Version history and security improvements
-- **`security-impedance-core/`** - Clean academic reference implementation
-
-### Deployment
-- **`docker-compose.yml`** - Local development environment
-- **`deploy/k8s/`** - Production Kubernetes manifests
-- **`.github/workflows/`** - CI/CD security validation pipeline
+Compatibility first, defense-in-depth, fail-safe by default, transparent auditing, and micro-second-level performance overhead—all validated by automated tests (`TEST_RESULTS.md`).
 
 ---
 
-## 🎯 Next Steps
+## 📁 Where to Look Next
 
-1. **Read this document first** to understand the big picture
-2. **Try the quick start** in `README.md` to see it working
-3. **Examine the test results** in `TEST_RESULTS.md` for validation evidence
-4. **Explore the implementation** starting with `src/wrapper/` for Layer 1
-5. **Review the policies** in `deploy/opa/policies/` for Layer 2 rules
-
-The mental model above should help you navigate the codebase with confidence and understand why each piece exists in the larger security architecture.
+`src/wrapper/` for Layer 1 code.
+`deploy/opa/policies/` for Rego firewall.
+`src/mcp_server/` for tightened MCP logic.
+`test_*` scripts for validation evidence.
 
 ---
 
-## 🔍 Validation
+## 🔍 Validation Snapshot
 
-This entire framework has been validated to:
-- ✅ **Block all known attack vectors** (secret injection, path traversal, etc.)
-- ✅ **Maintain sub-millisecond performance** (0.234ms avg, 64x better than requirement)
-- ✅ **Preserve MCP compatibility** (existing clients work unchanged)
-- ✅ **Meet enterprise security standards** (defense in depth, audit trails)
-- ✅ **Scale to production workloads** (Kubernetes-native, CI/CD ready)
+Full test suites show 0.234 ms average overhead, every known secret-injection or path-traversal attack blocked, and zero changes required in existing MCP clients.
 
-See `TEST_RESULTS.md` for detailed validation evidence.
+This enhanced document keeps the original structure but clarifies rationale, responsibilities, and file locations so new contributors find the right entry points fast.
