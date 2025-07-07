@@ -58,8 +58,8 @@ class PathAliaser:
         if path in self._alias_cache:
             return self._alias_cache[path]
             
-        # Normalize path for consistent hashing
-        normalized_path = str(Path(path).resolve())
+        # Normalize path for consistent hashing (avoid container-specific absolute paths)
+        normalized_path = os.path.normpath(path).replace('\\', '/')
         
         # Generate deterministic hash
         hash_object = hashlib.sha256(normalized_path.encode('utf-8'))

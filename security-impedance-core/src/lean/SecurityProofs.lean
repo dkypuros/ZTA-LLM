@@ -20,7 +20,12 @@ def is_alias (token : AliasToken) : Bool :=
 theorem alias_no_leak (p : FilePath) :
   is_alias (alias_path p) = true := by
   simp [alias_path, is_alias]
-  sorry -- Proof to be completed
+  -- The alias_path always produces "FILE_" + 8 hex chars = 13 total length
+  constructor
+  · -- Prove startsWith "FILE_"
+    simp [String.startsWith]
+  · -- Prove length = 13 
+    simp [String.length]
 
 -- Security impedance property
 theorem security_impedance_preserves_privacy 

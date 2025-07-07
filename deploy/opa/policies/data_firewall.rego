@@ -2,6 +2,9 @@
 # 
 # Implements the OPA policy described in the paper for service mesh
 # enforcement. Prevents data exfiltration through transit validation.
+#
+# NOTE: This is the FULL policy with entropy and size checks.
+# See security-impedance-core/policies/firewall.rego for minimal reference implementation.
 
 package anthro.guard
 
@@ -210,13 +213,10 @@ blocked_tools := {
 blocked_content_sample := sample if {
     not allow
     content := input.request.body
-    sample := substring(content, 0, min(100, count(content)))
+    sample := strings.substring(content, 0, 100)
 } else := ""
 
-# Helper functions - use built-in lower function
-# Note: OPA has a built-in strings.to_lower function for proper Unicode handling
-
-min(a, b) := a if a <= b else b
+# Helper functions - using built-in OPA string functions
 
 # Rate limiting helpers (for future enhancement)
 rate_limit_key := sprintf("rate_limit:%s", [input.request.remote_addr])

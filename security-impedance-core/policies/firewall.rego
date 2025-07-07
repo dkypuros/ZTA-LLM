@@ -1,3 +1,9 @@
+# OPA Security Policy - Layer 2 Service Mesh Enforcement  
+# Implements firewall rules described in the paper
+#
+# NOTE: This is the MINIMAL reference policy for academic review.
+# See ../../deploy/opa/policies/data_firewall.rego for full production implementation.
+
 package anthro.guard
 
 default allow = false

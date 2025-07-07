@@ -25,9 +25,8 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# Copy source code (exclude test/ from runtime image)
 COPY src/ ./src/
-COPY test/ ./test/
 
 # Create data directories
 RUN mkdir -p /app/data /app/logs /app/config

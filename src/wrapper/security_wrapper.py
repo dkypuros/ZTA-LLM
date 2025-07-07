@@ -200,12 +200,9 @@ class SecurityWrapper:
         
         processing_time = (time.time() - start_time) * 1000
         
-        # Check processing time constraint
+        # Check processing time constraint - fail-closed for all security levels
         if processing_time > self.config.max_processing_time_ms:
-            if self.config.security_level in [SecurityLevel.STRICT, SecurityLevel.PARANOID]:
-                # Fail-closed in strict/paranoid modes
-                blocked_reason = "processing-timeout"
-            # Log warning in normal mode but allow
+            blocked_reason = "processing-timeout"
         
         is_safe = blocked_reason is None
         
