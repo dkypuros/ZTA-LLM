@@ -9,37 +9,6 @@
 
 All critical "must-fix" gaps identified in the punch-list have been successfully resolved and validated through comprehensive testing. The security impedance framework implementation is functionally solid and ready for production deployment.
 
-## Critical Gap Validation Results
-
-### ✅ Gap A: Missing OS Import Fix
-**Status:** PASS  
-**Issue:** `PathAliaser.alias_path()` called `os.path.normpath` but `os` was not imported  
-**Fix:** Added `import os` to `src/wrapper/path_aliasing.py`  
-**Validation:** Path aliasing works correctly, generates valid aliases (e.g., `FILE_511b36a3`)
-
-### ✅ Gap B: Envoy-OPA Port Alignment  
-**Status:** PASS  
-**Issue:** Port mismatch between Envoy (8181) and OPA (9191) causing auth failures  
-**Fix:** Changed OPA gRPC plugin from `:9191` to `:8181` in `deploy/opa/config/opa-config.yaml`  
-**Validation:** Both configurations now use port 8181 consistently
-
-### ✅ Gap C: MCP Server Error Handling
-**Status:** PASS  
-**Issue:** Pydantic validation errors returned 500 instead of 400  
-**Fix:** Added `PydanticValidationError` to exception handling in `src/mcp_server/server.py`  
-**Validation:** Proper error handling with correct HTTP status codes
-
-### ✅ Gap D: Docker FastAPI Entrypoint
-**Status:** PASS  
-**Issue:** Missing `wrapper/api.py` file causing Docker container crash-loop  
-**Fix:** Created FastAPI application with health, process, metrics, and config endpoints  
-**Validation:** FastAPI app successfully created with all required routes
-
-### ✅ Gap E: OPA Policy Source Address
-**Status:** PASS  
-**Issue:** OPA policy referenced `input.request.remote_addr` which Envoy doesn't set  
-**Fix:** Changed to `input.source_address` for Envoy compatibility  
-**Validation:** Proper audit logging configuration for forensics
 
 ## Security Impedance Core Validation
 
