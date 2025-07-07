@@ -1,0 +1,61 @@
+# Layer 1 Security Wrapper Container
+# Implements application-level security impedance controls
+
+FROM python:3.11-slim
+
+LABEL maintainer="ZTA-LLM Project"
+LABEL description="Layer 1 Security Wrapper - Application Guards"
+LABEL version="1.0.0"
+
+# Security: Create non-root user
+RUN groupadd -r zta && useradd -r -g zta zta
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY src/ ./src/
+COPY test/ ./test/
+
+# Create data directories
+RUN mkdir -p /app/data /app/logs /app/config
+
+# Security: Set file permissions
+RUN chown -R zta:zta /app
+RUN chmod -R 755 /app
+
+# Security: Remove write permissions from code
+RUN chmod -R 555 /app/src
+
+# Switch to non-root user
+USER zta
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Environment variables
+ENV PYTHONPATH=/app/src
+ENV PROMPT_PAD_SIZE=4096
+ENV SECRET_DETECTION_ENABLED=true
+ENV PATH_ALIASING_ENABLED=true
+ENV LOG_LEVEL=INFO
+ENV SECURITY_LEVEL=normal
+
+# Expose port
+EXPOSE 8080
+
+# Start command
+CMD ["python", "-m", "uvicorn", "wrapper.api:app", "--host", "0.0.0.0", "--port", "8080"]

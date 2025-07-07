@@ -1,0 +1,69 @@
+# OPA Configuration for ZTA-LLM Security Impedance
+# Layer 2: Service Mesh Enforcement
+
+services:
+  authz:
+    url: http://envoy-proxy:8082/v1/data/anthro/guard
+  
+  decision_log:
+    url: http://prometheus:9090/api/v1/write
+    
+decision_logs:
+  console: true
+  
+  # Structured logging for audit trail
+  reporting:
+    min_delay_seconds: 5
+    max_delay_seconds: 10
+    
+  # Mask sensitive content in logs
+  mask_decision:
+    - "input.request.body"
+    
+bundles:
+  authz:
+    resource: "/v1/bundles/anthro"
+    polling:
+      min_delay_seconds: 10
+      max_delay_seconds: 20
+
+# Plugin configuration for Envoy integration
+plugins:
+  envoy_ext_authz_grpc:
+    addr: :9191
+    enable_reflection: true
+    
+# Performance tuning
+server:
+  encoding:
+    gzip:
+      level: 6
+      
+# Security settings
+security:
+  tls:
+    enabled: false  # Disabled for development, enable for production
+    
+# Distributed tracing
+distributed_tracing:
+  type: jaeger
+  address: jaeger:14268
+  service_name: opa-data-firewall
+
+# Monitoring
+status:
+  prometheus: true
+  
+# Query optimization
+optimization:
+  early_exit: true
+  
+# Custom builtin functions
+builtins:
+  - name: "custom.entropy"
+    implementation: "entropy_analyzer"
+    
+# Policy caching
+caching:
+  inter_query_builtin_cache:
+    max_size_bytes: 104857600  # 100MB

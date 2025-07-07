@@ -1,0 +1,196 @@
+version: '3.8'
+
+services:
+  # Layer 1: Application Security Wrapper
+  security-wrapper:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.wrapper
+    container_name: zta-wrapper
+    environment:
+      - PROMPT_PAD_SIZE=4096
+      - SECRET_DETECTION_ENABLED=true
+      - PATH_ALIASING_ENABLED=true
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./data:/app/data:ro
+      - ./test:/app/test:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - zta-network
+    depends_on:
+      - mcp-server
+      - opa-server
+
+  # MCP Server with Tool Registry
+  mcp-server:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.mcp
+    container_name: zta-mcp-server
+    environment:
+      - VLLM_ENDPOINT=http://vllm-server:8000
+      - SCHEMA_VALIDATION_STRICT=true
+      - TOOL_TIMEOUT=30
+      - MAX_CONTEXT_LENGTH=8192
+    volumes:
+      - ./src/mcp_server/schemas:/app/schemas:ro
+    ports:
+      - "8081:8081"
+    networks:
+      - zta-network
+    depends_on:
+      - vllm-server
+
+  # Local vLLM Inference Server
+  vllm-server:
+    image: vllm/vllm-openai:latest
+    container_name: zta-vllm
+    command: |
+      --model microsoft/DialoGPT-medium
+      --host 0.0.0.0
+      --port 8000
+      --max-model-len 4096
+      --disable-log-requests
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    ports:
+      - "8000:8000"
+    networks:
+      - zta-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Open Policy Agent (OPA) Server
+  opa-server:
+    image: openpolicyagent/opa:latest-envoy
+    container_name: zta-opa
+    command: |
+      run --server --addr 0.0.0.0:8181
+      --config-file /app/config/opa-config.yaml
+      /app/policies
+    volumes:
+      - ./deploy/opa/policies:/app/policies:ro
+      - ./deploy/opa/config:/app/config:ro
+    ports:
+      - "8181:8181"
+    networks:
+      - zta-network
+
+  # Istio Envoy Proxy (Layer 2 Security)
+  envoy-proxy:
+    image: envoyproxy/envoy:v1.28-latest
+    container_name: zta-envoy
+    command: /usr/local/bin/envoy -c /etc/envoy/envoy.yaml
+    volumes:
+      - ./deploy/envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    ports:
+      - "8082:8082"
+      - "9901:9901"  # Admin interface
+    networks:
+      - zta-network
+    depends_on:
+      - opa-server
+
+  # Redis for session and cache management
+  redis:
+    image: redis:7-alpine
+    container_name: zta-redis
+    command: redis-server --requirepass zta-secure-password
+    ports:
+      - "6379:6379"
+    networks:
+      - zta-network
+    volumes:
+      - redis-data:/data
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: zta-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - zta-network
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: zta-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/monitoring/grafana:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - zta-network
+    depends_on:
+      - prometheus
+
+  # Test Data Generator
+  data-generator:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.datagen
+    container_name: zta-data-generator
+    environment:
+      - GENERATE_PII=true
+      - GENERATE_SECRETS=true
+      - OUTPUT_PATH=/app/data
+    volumes:
+      - ./data:/app/data
+    networks:
+      - zta-network
+    profiles:
+      - tools
+
+  # Security Testing Suite
+  red-team-tester:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.redteam
+    container_name: zta-red-team
+    environment:
+      - TARGET_ENDPOINT=http://security-wrapper:8080
+      - TEST_ITERATIONS=1000
+      - ATTACK_VECTORS=all
+    volumes:
+      - ./test/security:/app/tests:ro
+      - ./data:/app/data:ro
+    networks:
+      - zta-network
+    profiles:
+      - testing
+    depends_on:
+      - security-wrapper
+
+networks:
+  zta-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:
