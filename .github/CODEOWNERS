@@ -1,0 +1,17 @@
+# Global code owners for security review
+* @security-team
+
+# Security-critical files require additional review
+/src/wrapper/ @security-team @engineering-lead
+/security-impedance-core/ @security-team @engineering-lead
+/deploy/opa/policies/ @security-team @engineering-lead
+/.github/workflows/ @security-team @devops-lead
+
+# Configuration files
+/deploy/ @devops-lead @security-team
+/docker-compose.yml @devops-lead @security-team
+/Dockerfile* @devops-lead @security-team
+
+# Test files
+/test_*.py @engineering-lead @security-team
+/test/ @engineering-lead

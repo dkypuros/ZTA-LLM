@@ -1,0 +1,164 @@
+name: Security Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  schedule:
+    # Run nightly security validation at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  security-tests:
+    name: Security Fixes Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest
+        
+    - name: Run Critical Fixes Test Suite
+      run: |
+        python test_critical_fixes.py
+        
+    - name: Run Security Fixes Test Suite
+      run: |
+        python test_security_fixes.py
+        
+    - name: Run Unit Tests
+      run: |
+        cd security-impedance-core
+        python -m pytest tests/unit/ -v
+        
+    - name: Archive test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          test_results_*.log
+          security-impedance-core/test_results_*.log
+
+  container-security:
+    name: Container Vulnerability Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Build Docker image
+      run: |
+        docker build -f deploy/docker/Dockerfile.wrapper -t zta-llm:${{ github.sha }} .
+        
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'zta-llm:${{ github.sha }}'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        severity: 'HIGH,CRITICAL'
+        exit-code: '1'  # Fail on HIGH/CRITICAL vulnerabilities
+        
+    - name: Upload Trivy scan results
+      if: always()
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  secret-scanning:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        
+    - name: Upload Gitleaks results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: gitleaks-results
+        path: results.sarif
+
+  sbom-generation:
+    name: Software Bill of Materials
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        path: .
+        format: spdx-json
+        
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v3
+      with:
+        name: sbom
+        path: ${{ steps.sbom.outputs.fileName }}
+
+  policy-validation:
+    name: OPA Policy Testing
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install OPA
+      run: |
+        curl -L -o opa https://openpolicyagent.org/downloads/v0.58.0/opa_linux_amd64_static
+        chmod 755 ./opa
+        sudo mv opa /usr/local/bin
+        
+    - name: Test OPA policies
+      run: |
+        cd deploy/opa/policies
+        opa test . -v
+        
+    - name: Validate policy syntax
+      run: |
+        opa fmt --diff deploy/opa/policies/data_firewall.rego
+        opa fmt --diff security-impedance-core/policies/firewall.rego
+
+  deployment-validation:
+    name: Kubernetes Manifest Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Validate Kubernetes manifests
+      uses: instrumenta/kubeval-action@master
+      with:
+        files: deploy/k8s/
+        
+    - name: Security policy validation
+      run: |
+        # Check for security best practices in K8s manifests
+        grep -r "runAsNonRoot: true" deploy/k8s/ || exit 1
+        grep -r "readOnlyRootFilesystem: true" deploy/k8s/ || exit 1
+        grep -r "allowPrivilegeEscalation: false" deploy/k8s/ || exit 1

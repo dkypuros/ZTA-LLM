@@ -1,0 +1,65 @@
+# Gitleaks configuration for ZTA-LLM project
+title = "ZTA-LLM Security Configuration"
+
+# Exclude test files and synthetic data
+[extend]
+useDefault = true
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API Key"
+regex = '''sk-ant-[a-zA-Z0-9-_]{95}'''
+keywords = ["sk-ant"]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key"
+regex = '''sk-[a-zA-Z0-9]{48}'''
+keywords = ["sk-"]
+
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key"
+regex = '''AKIA[0-9A-Z]{16}'''
+keywords = ["AKIA"]
+
+[[rules]]
+id = "jwt-token"
+description = "JWT Token"
+regex = '''eyJ[A-Za-z0-9_/+-]*\.[A-Za-z0-9_/+-]*\.[A-Za-z0-9_/+-]*'''
+keywords = ["eyJ"]
+
+[[rules]]
+id = "private-key"
+description = "Private Key"
+regex = '''-----BEGIN.*PRIVATE KEY-----[\s\S]*?-----END.*PRIVATE KEY-----'''
+keywords = ["BEGIN", "PRIVATE", "KEY"]
+
+# Allowlist for test files and synthetic data
+[[allowlist]]
+description = "Synthetic test data"
+paths = [
+  '''data/synthetic_pii/generate_test_data\.py''',
+  '''data/fake_api_keys/.*''',
+  '''test.*\.py''',
+  '''.*test.*\.log''',
+  '''.*test.*\.md'''
+]
+
+[[allowlist]]
+description = "Documentation examples"
+paths = [
+  '''README\.md''',
+  '''docs/.*\.md''',
+  '''CHANGELOG\.md'''
+]
+
+[[allowlist]]
+description = "Test strings - not real secrets"
+regexTarget = "match"
+regex = '''sk_test_.*'''
+
+[[allowlist]]
+description = "Fake JWT tokens for testing"
+regexTarget = "match"
+regex = '''eyJ.*test.*'''
