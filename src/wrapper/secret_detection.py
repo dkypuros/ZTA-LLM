@@ -8,6 +8,8 @@ and other sensitive patterns.
 
 import re
 import base64
+import math
+import unicodedata
 from typing import List, NamedTuple, Dict, Pattern
 from enum import Enum
 
@@ -110,24 +112,26 @@ class SecretDetector:
         Returns:
             List of SecretMatch objects for each detected secret
         """
+        # Normalize Unicode to prevent bypass with confusable characters
+        normalized_text = unicodedata.normalize('NFKC', text)
         matches = []
         
         for secret_type, patterns in self.patterns.items():
             for pattern in patterns:
-                for match in pattern.finditer(text):
+                for match in pattern.finditer(normalized_text):
                     secret_match = SecretMatch(
                         secret_type=secret_type,
                         matched_text=match.group(0),
                         start_position=match.start(),
                         end_position=match.end(),
                         confidence=self._calculate_confidence(secret_type, match.group(0)),
-                        context=self._extract_context(text, match.start(), match.end())
+                        context=self._extract_context(normalized_text, match.start(), match.end())
                     )
                     matches.append(secret_match)
         
         # Add high-entropy string detection
         if self.sensitivity_level in ["high", "paranoid"]:
-            matches.extend(self._detect_high_entropy(text))
+            matches.extend(self._detect_high_entropy(normalized_text))
         
         return sorted(matches, key=lambda x: x.start_position)
     
@@ -216,7 +220,7 @@ class SecretDetector:
         for count in char_counts.values():
             probability = count / text_length
             if probability > 0:
-                entropy -= probability * (probability.bit_length() - 1)
+                entropy -= probability * math.log2(probability)
         
         return entropy
     

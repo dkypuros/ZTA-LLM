@@ -202,8 +202,10 @@ class SecurityWrapper:
         
         # Check processing time constraint
         if processing_time > self.config.max_processing_time_ms:
-            # Log warning but don't block (performance constraint)
-            pass
+            if self.config.security_level in [SecurityLevel.STRICT, SecurityLevel.PARANOID]:
+                # Fail-closed in strict/paranoid modes
+                blocked_reason = "processing-timeout"
+            # Log warning in normal mode but allow
         
         is_safe = blocked_reason is None
         

@@ -5,7 +5,8 @@ _ALIAS_PREFIX = "FILE_"
 
 def alias_path(path: str) -> str:
     """Return 8-hex SHA-256 alias, e.g. /data/foo.csv -> FILE_a1b2c3d4"""
-    norm = pathlib.Path(path).as_posix()
+    # Normalize path without resolving to avoid container-specific absolute paths
+    norm = os.path.normpath(path).replace('\\', '/')
     digest = hashlib.sha256(norm.encode()).hexdigest()[:8]
     return _ALIAS_PREFIX + digest
 

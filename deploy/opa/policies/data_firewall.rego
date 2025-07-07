@@ -131,7 +131,7 @@ has_exfiltration_patterns if {
 
 exfiltration_violations contains violation if {
     # Database dump patterns
-    contains(lower(input.request.body), "select * from")
+    contains(strings.to_lower(input.request.body), "select * from")
     violation := "sql_dump_attempt"
 }
 
@@ -143,7 +143,7 @@ exfiltration_violations contains violation if {
 
 exfiltration_violations contains violation if {
     # Log file access patterns
-    contains(lower(input.request.body), "/var/log/")
+    contains(strings.to_lower(input.request.body), "/var/log/")
     violation := "log_access_attempt"
 }
 
@@ -213,9 +213,8 @@ blocked_content_sample := sample if {
     sample := substring(content, 0, min(100, count(content)))
 } else := ""
 
-# Helper functions
-lower(str) := strings.replace(strings.replace(strings.replace(
-    str, "A", "a"), "B", "b"), "C", "c")  # Simplified lowercase
+# Helper functions - use built-in lower function
+# Note: OPA has a built-in strings.to_lower function for proper Unicode handling
 
 min(a, b) := a if a <= b else b
 
