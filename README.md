@@ -1,6 +1,8 @@
 # ZTA-LLM: Zero-Trust Agentic LLM Orchestration
 
 > **A Secure Hybrid Framework for Public Planning and Private Inference**
+> 
+> 🎓 **Academic reviewers**: Jump to [`security-impedance-core/`](security-impedance-core/) for the clean reference implementation with paper abstract
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)
@@ -8,6 +10,34 @@
 ![Tests](https://img.shields.io/badge/tests-passing-green.svg)
 
 This repository implements the **Security Impedance** framework described in our research paper: *"Zero-Trust Agentic LLM Orchestration on OpenShift: A Secure Hybrid Framework for Public Planning and Private Inference"*. 
+
+## 📚 **Academic Reference Implementation**
+
+> **🎓 For academic review, paper validation, and clean reference code:**
+> 
+> **→ [`security-impedance-core/`](security-impedance-core/)** ←
+>
+> This is the **clean, focused implementation** designed for:
+> - 📄 **Academic reviewers** - Complete paper abstract and direct code-to-paper mapping
+> - 🔬 **Researchers** - Formal Lean 4 verification framework and academic documentation  
+> - 🏗️ **Implementers** - Minimal, focused codebase with comprehensive validation
+> - 🚀 **Production** - OpenShift-ready Kubernetes manifests with security hardening
+>
+> **Contains**: Core security modules, formal verification, paper abstract, and validated performance claims
+> 
+> **Repository below** contains the full development environment and comprehensive testing suite.
+
+### 🧭 **Navigation Guide**
+
+| **Audience** | **Go to** | **Purpose** |
+|--------------|-----------|-------------|
+| 🎓 **Academic Reviewers** | [`security-impedance-core/`](security-impedance-core/) | Paper validation, abstract, clean reference code |
+| 🔬 **Researchers** | [`security-impedance-core/src/lean/`](security-impedance-core/src/lean/) | Formal verification framework |
+| 🏗️ **Implementers** | [`security-impedance-core/`](security-impedance-core/) | Production-ready minimal implementation |
+| 🧪 **Developers** | *This repository* | Full development environment, testing, monitoring |
+| 📊 **DevOps Teams** | [`security-impedance-core/deploy/`](security-impedance-core/deploy/) | Kubernetes/OpenShift manifests |
+
+---
 
 ## 🚀 Quick Start
 
