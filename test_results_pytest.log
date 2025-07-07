@@ -1,0 +1,14 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.9.6, pytest-8.4.1, pluggy-1.6.0 -- /Library/Developer/CommandLineTools/usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/davidkypuros/Documents/GitHub_Projects/ZTA-LLM/security-impedance-core
+plugins: anyio-4.9.0, asyncio-1.0.0
+asyncio: mode=strict, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 4 items
+
+tests/unit/test_alias.py::test_roundtrip PASSED                          [ 25%]
+tests/unit/test_alias.py::test_deterministic PASSED                      [ 50%]
+tests/unit/test_alias.py::test_different_paths_different_aliases PASSED  [ 75%]
+tests/unit/test_alias.py::test_alias_format PASSED                       [100%]
+
+============================== 4 passed in 0.02s ===============================

@@ -1,0 +1,33 @@
+Running Critical Fixes Validation Suite...
+Testing all must-fix gaps to ensure stack functionality
+
+Running: Gap A: OS Import Fix...
+Running: Gap B: Envoy-OPA Port Alignment...
+Running: Gap C: MCP Error Handling...
+Running: Gap D: FastAPI Entrypoint...
+Running: Gap E: OPA Source Address...
+Running: Security Impedance Core...
+Running: Performance Constraints...
+
+================================================================================
+CRITICAL FIXES VALIDATION RESULTS
+================================================================================
+✅ Gap A: OS Import Fix: PASS
+   Path aliasing works: FILE_511b36a3
+✅ Gap B: Envoy-OPA Port Alignment: PASS
+   Both configs use port 8181
+✅ Gap C: MCP Error Handling: PASS
+   PydanticValidationError properly imported and handled
+✅ Gap D: FastAPI Entrypoint: PASS
+   FastAPI app created with routes: ['/health', '/process', '/metrics', '/config']
+✅ Gap E: OPA Source Address: PASS
+   Uses input.source_address for Envoy compatibility
+❌ Security Impedance Core: FAIL
+   ERROR: No module named 'impedance'
+✅ Performance Constraints: PASS
+   Avg: 1.803ms, Max: 2.700ms (< 15ms)
+
+--------------------------------------------------------------------------------
+TOTAL: 6 PASSED, 1 FAILED
+⚠️  SOME CRITICAL ISSUES REMAIN - STACK MAY NOT FUNCTION
+================================================================================
