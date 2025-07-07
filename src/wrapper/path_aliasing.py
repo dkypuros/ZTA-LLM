@@ -6,6 +6,7 @@ SHA256-based aliases to prevent organizational structure disclosure.
 """
 
 import hashlib
+import os
 import re
 from typing import Dict, NamedTuple, Optional
 from pathlib import Path

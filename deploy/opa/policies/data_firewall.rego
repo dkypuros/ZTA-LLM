@@ -32,7 +32,7 @@ decision_log := {
     "timestamp": time.now_ns(),
     "request_id": input.request.headers["x-request-id"],
     "user_agent": input.request.headers["user-agent"],
-    "source_ip": input.request.remote_addr,
+    "source_ip": input.source_address,
     "checks": {
         "unaliased_paths": has_unaliased_paths,
         "obvious_secrets": has_obvious_secrets,
@@ -219,7 +219,7 @@ blocked_content_sample := sample if {
 # Helper functions - using built-in OPA string functions
 
 # Rate limiting helpers (for future enhancement)
-rate_limit_key := sprintf("rate_limit:%s", [input.request.remote_addr])
+rate_limit_key := sprintf("rate_limit:%s", [input.source_address])
 
 # Monitoring and metrics
 violation_metrics := {

@@ -152,7 +152,7 @@ class MCPServer:
                 
                 return response.dict()
                 
-            except ValidationError as e:
+            except (ValidationError, PydanticValidationError) as e:
                 self._stats["validation_errors"] += 1
                 self._stats["failed_requests"] += 1
                 

@@ -30,7 +30,7 @@ bundles:
 # Plugin configuration for Envoy integration
 plugins:
   envoy_ext_authz_grpc:
-    addr: :9191
+    addr: :8181
     enable_reflection: true
     
 # Performance tuning
