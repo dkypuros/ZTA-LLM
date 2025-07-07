@@ -4,8 +4,8 @@ This directory contains the academic research materials supporting the security-
 
 ## Contents
 
+- **[security_impedence_tex.pdf](security_impedence_tex.pdf)** - Full research paper: "Zero-Trust Agentic LLM Orchestration on OpenShift"
 - **Paper Manuscript** (LaTeX source) - *To be added*
-- **arXiv Submission** (PDF) - *To be added*  
 - **Formal Proofs** (Lean 4 extended proofs) - *To be added*
 - **Performance Data** (Benchmark results) - *To be added*
 - **Security Analysis** (Red team test reports) - *To be added*

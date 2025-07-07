@@ -1,6 +1,8 @@
 # security-impedance-core 🛡️
 
 > **Reference implementation for "Zero-Trust Agentic LLM Orchestration on OpenShift: A Secure Hybrid Framework for Public Planning and Private Inference"**
+> 
+> 📄 **[Full Research Paper (PDF)](academic-research/security_impedence_tex.pdf)**
 
 ## Abstract
 
@@ -45,6 +47,8 @@ pytest
 This implementation validates the technical claims from:
 
 > Kypuros, D. (2025). "Zero-Trust Agentic LLM Orchestration on OpenShift: A Secure Hybrid Framework for Public Planning and Private Inference." *arXiv preprint arXiv:2506.xxxxx*.
+> 
+> Full paper available: [security_impedence_tex.pdf](academic-research/security_impedence_tex.pdf)
 
 ## Architecture
 

@@ -3,13 +3,15 @@
 > **A Secure Hybrid Framework for Public Planning and Private Inference**
 > 
 > 🎓 **Academic reviewers**: Jump to [`security-impedance-core/`](security-impedance-core/) for the clean reference implementation with paper abstract
+> 
+> 📄 **Research Paper**: [Zero-Trust Agentic LLM Orchestration on OpenShift (PDF)](security-impedance-core/academic-research/security_impedence_tex.pdf)
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)
 ![Security](https://img.shields.io/badge/security-validated-red.svg)
 ![Tests](https://img.shields.io/badge/tests-passing-green.svg)
 
-This repository implements the **Security Impedance** framework described in our research paper: *"Zero-Trust Agentic LLM Orchestration on OpenShift: A Secure Hybrid Framework for Public Planning and Private Inference"*. 
+This repository implements the **Security Impedance** framework described in our research paper: *"Zero-Trust Agentic LLM Orchestration on OpenShift: A Secure Hybrid Framework for Public Planning and Private Inference"* ([Full Paper PDF](security-impedance-core/academic-research/security_impedence_tex.pdf)). 
 
 ## 📚 **Academic Reference Implementation**
 
