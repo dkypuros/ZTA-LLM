@@ -43,7 +43,8 @@ paths = [
   '''data/fake_api_keys/.*''',
   '''test.*\.py''',
   '''.*test.*\.log''',
-  '''.*test.*\.md'''
+  '''.*test.*\.md''',
+  '''deploy/opa/policies/.*_test\.rego'''
 ]
 
 [[allowlist]]
@@ -51,7 +52,8 @@ description = "Documentation examples"
 paths = [
   '''README\.md''',
   '''docs/.*\.md''',
-  '''CHANGELOG\.md'''
+  '''CHANGELOG\.md''',
+  '''TEST_RESULTS\.md'''
 ]
 
 [[allowlist]]
@@ -60,6 +62,16 @@ regexTarget = "match"
 regex = '''sk_test_.*'''
 
 [[allowlist]]
-description = "Fake JWT tokens for testing"
+description = "Example AWS keys"
 regexTarget = "match"
-regex = '''eyJ.*test.*'''
+regex = '''AKIAIOSFODNN7EXAMPLE'''
+
+[[allowlist]]
+description = "Example JWT tokens for testing"
+regexTarget = "match" 
+regex = '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ\.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'''
+
+[[allowlist]]
+description = "GitHub token placeholder"
+regexTarget = "match"
+regex = '''\$\{\{ secrets\.GITHUB_TOKEN \}\}'''

@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy-proxy
+  namespace: zta-llm
+  labels:
+    app: envoy-proxy
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: envoy-proxy
+  template:
+    metadata:
+      labels:
+        app: envoy-proxy
+        version: v1
+    spec:
+      serviceAccountName: envoy-proxy
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: envoy
+        image: envoyproxy/envoy:v1.28-latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 10000
+          name: http
+        - containerPort: 9901
+          name: admin
+        command:
+        - /usr/local/bin/envoy
+        args:
+        - --config-path
+        - /etc/envoy/envoy.yaml
+        - --service-cluster
+        - zta-llm-envoy
+        - --service-node
+        - envoy
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /ready
+            port: 9901
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 9901
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: envoy-config
+          mountPath: /etc/envoy
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: envoy-config
+        configMap:
+          name: envoy-config
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy-proxy
+  namespace: zta-llm
+  labels:
+    app: envoy-proxy
+spec:
+  selector:
+    app: envoy-proxy
+  ports:
+  - name: http
+    port: 10000
+    targetPort: 10000
+  - name: admin
+    port: 9901
+    targetPort: 9901
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: envoy-proxy
+  namespace: zta-llm
+  labels:
+    app: envoy-proxy

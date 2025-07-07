@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zta-llm
+  labels:
+    name: zta-llm
+    security.openshift.io/scc.podSecurityLabelSync: false
+  annotations:
+    openshift.io/sa.scc.mcs: "s0:c123,c456"
+    openshift.io/sa.scc.supplemental-groups: "1000"
+    openshift.io/sa.scc.uid-range: "1000/10000"
